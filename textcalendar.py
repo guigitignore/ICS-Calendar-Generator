@@ -1,4 +1,6 @@
-from io import TextIOWrapper
+from io import TextIOWrapper,StringIO
+from datetime import datetime
+from ics import Calendar,Event
 
 class CalendarParser:
     def __init__(self,filename:str) -> None:
@@ -18,12 +20,20 @@ class CalendarParser:
    
 
 class CalendarWeek:
-    def __init__(self,calendarParser:CalendarParser,file:TextIOWrapper) -> None:
-        pass
+    def __init__(self,startdate:datetime,instructions:StringIO) -> None:
+        self.__days:list[CalendarDay]=[]
+
+
+
+    @property
+    def days(self):
+        return self.__days
 
 
 class CalendarDay:
-    pass
+    def __init__(self,day:datetime,instructions:str) -> None:
+        pass
+    
 
 
 CalendarParser("calendar.txt")
