@@ -1,3 +1,4 @@
 **/env
 **/*.txt
 **/*.ics
+**/__pycache__
