@@ -1,12 +1,15 @@
 from __future__ import annotations
+
+# This file contains the TextCalendar class
+
 from datetime import datetime,timedelta
-from ics import Calendar,Event
+from ics import Calendar,TimeRangeEvent,DayEvent,Event
 import re
 
 class TextCalendar:
 
     class Day:
-        DAY_REGEX=r'(?P<beginHour>\d{1,2})\s*[hH]\s*(?P<beginMinute>\d{1,2})\s*-\s*(?P<endHour>\d{1,2})\s*[hH]\s*(?P<endMinute>\d{1,2})\s*:\s*(?P<name>[^\(]+)\s*\((?P<information>[^\)]+)\)+'
+        DAY_REGEX=r'(?P<beginHour>\d{1,2})\s*[hH]\s*(?P<beginMinute>\d{1,2})\s*-\s*(?P<endHour>\d{1,2})\s*[hH]\s*(?P<endMinute>\d{1,2})\s*:\s*(?P<name>[^\(]+)\s*\((?P<organizer>[^\)]+)\)+'
 
         def validateHour(hour:str)->int:
             result=int(hour)
@@ -39,22 +42,18 @@ class TextCalendar:
                     continue
 
                 name = match.group('name').strip()
-                information = match.group('information').strip()
+                organizer = match.group('organizer').strip()
 
                 eventBegin=day+timedelta(hours=beginHour,minutes=beginMinute)
                 eventEnd=day+timedelta(hours=endHour,minutes=endMinute)
 
-                event=Event()
-                event.append(Event.Start(eventBegin))
-                event.append(Event.End(eventEnd))
-                event.append(Event.Summary(name))
-                event.append(Event.Description(information))
+                event=TimeRangeEvent(eventBegin,eventEnd)
+                event.append(Event.Summary(f"{name} - {organizer}"))
                 self.__events.append(event)
 
             if matchCounter==0:
-                event=Event()
+                event=DayEvent(day)
                 event.append(Event.Summary(instructions))
-                event.append(Event.Day(day))
                 self.__events.append(event)
         
 
