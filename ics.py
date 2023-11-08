@@ -12,7 +12,7 @@
 # We rely only on builtin python library
 from datetime import datetime,timedelta
 # Generate event UID
-from uuid import uuid1
+from uuid import uuid4
 
 # this class allows to make a singleton class easily
 class Singleton:
@@ -109,13 +109,13 @@ class Calendar(Container):
 # An Event is a container to represent an event
 # It has recommanded fields: 
 # - DTSTAMP is the instant of creation of the event
-# - UID is a unique id associated to the event (Here I chose a UID generation based on the time -> uuid1)
+# - UID is a unique id associated to the event (Here I chose a UID generation based on random number -> uuid4)
 # https://docs.python.org/3/library/uuid.html
 class Event(Container):
     def __init__(self) -> None:
         super().__init__("VEVENT")
         self.append(ContentLineTime("DTSTAMP",datetime.now()))
-        self.append(ContentLine("UID",str(uuid1()).upper()))
+        self.append(ContentLine("UID",str(uuid4()).upper()))
 
     # We define some well known keys in VEVENT
     class Summary(ContentLineString):

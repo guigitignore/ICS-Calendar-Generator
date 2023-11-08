@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime,timedelta
 from ics import Calendar,TimeRangeEvent,DayEvent,Event
 import re
+from io import TextIOWrapper
 
 class TextCalendar:
 
@@ -25,6 +26,7 @@ class TextCalendar:
         
         def __init__(self,day:datetime,instructions:str) -> None:
             self.__events=[]
+            self.__date=day
 
             matches = re.finditer(TextCalendar.Day.DAY_REGEX, instructions)
             matchCounter=0
@@ -60,11 +62,18 @@ class TextCalendar:
         @property
         def events(self)->list[Event]:
             return self.__events
+        
+        @property
+        def date(self)->datetime:
+            return self.__date
 
     class Week:
         WEEK_DAYS=["LUNDI","MARDI","MERCREDI","JEUDI","VENDREDI"]
 
         def __init__(self,startDate:datetime,instructions:list[str]) -> None:
+            # check date
+            startDate=startDate-timedelta(days=startDate.weekday())
+
             self.__days:list[TextCalendar.Day]=[]
             
             for line in instructions:
@@ -75,7 +84,12 @@ class TextCalendar:
                     continue
 
                 currentDay=startDate+timedelta(days=dayNumber)
-                self.__days.append(TextCalendar.Day(currentDay,dayInstructions.strip()))
+                
+                
+                for day in self.__days:
+                    if day.date==currentDay:
+                        day.events.extend(TextCalendar.Day(currentDay,dayInstructions).events)
+                self.__days.append()
 
         @property
         def days(self)->list[TextCalendar.Day]:
@@ -89,20 +103,15 @@ class TextCalendar:
             return result
 
 
-    WEEK_REGEX=r"(?i)\bsemaine\b\s+du\s+(?P<begin>\d{2}/\d{2})"
+    WEEK_REGEX=r"(?i)\bsemaine\b\s+du\s+(?P<begin>\d{1,2}/\d{1,2})"
     YEAR=datetime.now().year
 
-    def __init__(self,filename:str) -> None:
-        self.__filename=str
+    def __init__(self,instructions:list[str]) -> None:
         self.__weeks:list[TextCalendar.Week]=[]
-
-        with open(filename,"r") as file:
-            lines=file.readlines()
-
         weekInstructions=[]
         
-        while lines:
-            line=lines.pop().strip()
+        while instructions:
+            line=instructions.pop().strip()
 
             if not line:
                 continue
@@ -121,13 +130,19 @@ class TextCalendar:
 
         self.__weeks.reverse()
 
+    @classmethod
+    def fromBuffer(cls,file:TextIOWrapper)->TextCalendar:
+        return cls(file.readlines())
+    
+    @classmethod
+    def open(cls,filename:str)->TextCalendar:
+        with open(filename,"r") as file:
+            arguments=file.readlines()
+        return cls(arguments)
+
     @property
     def weeks(self)->list[TextCalendar.Week]:
         return self.__weeks 
-
-    @property
-    def filename(self)->str:
-        return self.__filename
     
     @property
     def events(self)->list[Event]:
@@ -136,10 +151,13 @@ class TextCalendar:
             result.extend(week.events)
         return result
     
-    def export(self,filename:str)->None:
+    def exportToBuffer(self,file:TextIOWrapper)->None:
         calendar=Calendar()
         calendar.extend(self.events)
-
+        file.write(str(calendar))
+    
+    def export(self,filename:str)->None:
         with open(filename,"w") as f:
-            f.write(str(calendar))
+            self.exportToBuffer(f)
+
     
