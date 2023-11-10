@@ -14,6 +14,8 @@ from datetime import datetime,timedelta
 # Generate event UID
 from uuid import uuid4
 
+from abc import abstractmethod
+
 # this class allows to make a singleton class easily
 class Singleton:
     _instance=None
@@ -23,29 +25,44 @@ class Singleton:
             cls._instance = super().__new__(cls,*args,**kwargs)
         return cls._instance
     
+class ICSObject:
+
+    @property
+    @abstractmethod
+    def name(self)->str:
+        pass
+    
+    @property
+    @abstractmethod
+    def value(self)->str:
+        pass
+    
 # A container in ICS file is delimited by BEGIN:<name> and END:<name>
 # It can contains other container or just content lines
-class Container(list):
+class Container(list[ICSObject],ICSObject):
     def __init__(self,name:str) -> None:
-        super().__init__()
+        list.__init__(self)
         #use uppercase key
         self.__name=name.upper()
 
     # stringify container
     def __str__(self) -> str:
-        ret = ['BEGIN:' + self.__name]
-        # we insert string representations of all elements between tags
-        for line in self:
-            ret.append(str(line))
-        ret.append('END:' + self.__name)
-        return "\r\n".join(ret)
+        return f"BEGIN:{self.name}\r\n{self.value}\r\nEND:{self.name}"
     
     # basic representation (otherwise it shows empty list)
     def __repr__(self) -> str:
         return f"<ICS:Container:{self.__class__.__name__}>"    
     
+    @property
+    def name(self)->str:
+        return self.__name
+    
+    @property
+    def value(self)->str:
+        return "\r\n".join(str(elt) for elt in self)
+    
 # Content line is just an entry in ICS file. It syntax is <KEY>:<VALUE>
-class ContentLine(list):
+class ContentLine(list[ICSObject],ICSObject):
     def __init__(self,name:str,value:str) -> None:
         super().__init__()
         #use uppercase key
@@ -62,15 +79,31 @@ class ContentLine(list):
     def __repr__(self) -> str:
         return f"<ICS:ContentLine:{self.__class__.__name__}>"
     
+    @property
+    def name(self)->str:
+        return self.__name
+    
+    @property
+    def value(self)->str:
+        return self.__value
+    
 # Content line params are inserted between ContentLine key and value and are separated by semicolons:
 # Example: <KEY>;<PARAM_NAME>=<PARAM_VALUE>:<VALUE>
-class ContentLineParam:
+class ContentLineParam(ICSObject):
     def __init__(self,name:str,value:str) -> None:
         self.__name=name.upper()
         self.__value=value
 
     def __str__(self) -> str:
         return f"{self.__name}={self.__value}"
+    
+    @property
+    def name(self)->str:
+        return self.__name
+    
+    @property
+    def value(self)->str:
+        return self.__value
     
 # This type of ContentLine represent a time with second precision
 class ContentLineTime(ContentLine):
@@ -152,3 +185,8 @@ class TimeRangeEvent(Event):
         super().__init__()
         self.append(ContentLineTime("DTSTART",begin))
         self.append(ContentLineTime("DTEND",end))
+
+# Precise time event
+class TimeEvent(TimeRangeEvent):
+    def __init__(self,time: datetime) -> None:
+        super().__init__(time, time)

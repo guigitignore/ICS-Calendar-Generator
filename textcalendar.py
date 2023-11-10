@@ -12,17 +12,9 @@ class TextCalendar:
     class Day:
         DAY_REGEX=r'(?P<beginHour>\d{1,2})\s*[hH]\s*(?P<beginMinute>\d{1,2})\s*-\s*(?P<endHour>\d{1,2})\s*[hH]\s*(?P<endMinute>\d{1,2})\s*:\s*(?P<name>[^\(]+)\s*\((?P<organizer>[^\)]+)\)+'
 
-        def validateHour(hour:str)->int:
-            result=int(hour)
-            if result<0 or result>23:
-                raise ValueError
-            return result
-
-        def validateMinute(minute:str)->int:
-            result=int(minute)
-            if result<0 or result>59:
-                raise ValueError
-            return result
+        def parseTime(date:datetime,hour:str,minute:str)->datetime:
+            dt=datetime.strptime(f"{hour}:{minute}","%H:%M")
+            return date+timedelta(hours=dt.hour,minutes=dt.minute)
         
         def __init__(self,day:datetime,instructions:str) -> None:
             self.__events=[]
@@ -35,19 +27,13 @@ class TextCalendar:
                 matchCounter+=1
 
                 try:
-                    beginHour = TextCalendar.Day.validateHour(match.group('beginHour'))
-                    beginMinute = TextCalendar.Day.validateMinute(match.group('beginMinute'))
-
-                    endHour = TextCalendar.Day.validateHour(match.group('endHour'))
-                    endMinute = TextCalendar.Day.validateMinute(match.group('endMinute'))
+                    eventBegin=+TextCalendar.Day.parseTime(self.__date,match.group("beginHour"),match.group("beginMinute"))
+                    eventEnd=TextCalendar.Day.parseTime(self.__date,match.group("endHour"),match.group("endMinute"))
                 except:
                     continue
 
                 name = match.group('name').strip()
                 organizer = match.group('organizer').strip()
-
-                eventBegin=day+timedelta(hours=beginHour,minutes=beginMinute)
-                eventEnd=day+timedelta(hours=endHour,minutes=endMinute)
 
                 event=TimeRangeEvent(eventBegin,eventEnd)
                 event.append(Event.Summary(f"{name} - {organizer}"))
@@ -57,6 +43,10 @@ class TextCalendar:
                 event=DayEvent(day)
                 event.append(Event.Summary(instructions))
                 self.__events.append(event)
+
+        def eval(self,*instructions:str):
+            for i in instructions:
+                pass
         
 
         @property
@@ -68,13 +58,13 @@ class TextCalendar:
             return self.__date
 
     class Week:
-        WEEK_DAYS=["LUNDI","MARDI","MERCREDI","JEUDI","VENDREDI"]
+        WEEK_DAYS=["LUNDI","MARDI","MERCREDI","JEUDI","VENDREDI","SAMEDI","DIMANCHE"]
 
         def __init__(self,startDate:datetime,instructions:list[str]) -> None:
             # check date
-            startDate=startDate-timedelta(days=startDate.weekday())
+            self.__date=startDate-timedelta(days=startDate.weekday())
 
-            self.__days:list[TextCalendar.Day]=[]
+            self.__days:dict[datetime,TextCalendar.Day]={}
             
             for line in instructions:
                 try:
@@ -83,17 +73,16 @@ class TextCalendar:
                 except:
                     continue
 
-                currentDay=startDate+timedelta(days=dayNumber)
+                currentDay=self.__date+timedelta(days=dayNumber)
                 
+                if not currentDay in self.__days:
+                    self.__days[currentDay]=TextCalendar.Day(currentDay)
                 
-                for day in self.__days:
-                    if day.date==currentDay:
-                        day.events.extend(TextCalendar.Day(currentDay,dayInstructions).events)
-                self.__days.append()
+                self.__days.append(TextCalendar.Day(currentDay,dayInstructions))
 
         @property
         def days(self)->list[TextCalendar.Day]:
-            return self.__days
+            return [self.__days[d] for d in sorted(self.__days.keys())]
         
         @property
         def events(self)->list[Event]:
@@ -101,13 +90,17 @@ class TextCalendar:
             for day in self.days:
                 result.extend(day.events)
             return result
+        
+        @property
+        def date(self):
+            return self.__date
 
 
-    WEEK_REGEX=r"(?i)\bsemaine\b\s+du\s+(?P<begin>\d{1,2}/\d{1,2})"
+    WEEK_REGEX=r"semaine\s+du\s+(?P<day>\d{1,2})[/-|\s+](?P<month>\d{1,2})([/-|\s+](?P<year>(?:\d{2}){1,2}))?"
     YEAR=datetime.now().year
 
     def __init__(self,instructions:list[str]) -> None:
-        self.__weeks:list[TextCalendar.Week]=[]
+        self.__weeks:dict[datetime,TextCalendar.Week]=[]
         weekInstructions=[]
         
         while instructions:
@@ -118,9 +111,17 @@ class TextCalendar:
             
             match=re.match(TextCalendar.WEEK_REGEX,line,re.IGNORECASE)
             if match:
-                string_date=f"{match.group('begin')}/{TextCalendar.YEAR}"
+                day=match.group("day")
+                month=match.group("month")
+                year=match.group("year")
+
+                if not year:
+                    year=TextCalendar.YEAR
+                elif len(year)==2:
+                    year=str(TextCalendar.YEAR//100)+year
+
                 try:
-                    weekBegin=datetime.strptime(string_date, "%d/%m/%Y")
+                    weekBegin=datetime.strptime(f"{day}/{month}/{year}", "%d/%m/%Y")
                     weekInstructions.reverse()
                     self.__weeks.append(TextCalendar.Week(weekBegin,weekInstructions))
                 finally:
@@ -129,6 +130,13 @@ class TextCalendar:
                 weekInstructions.append(line)
 
         self.__weeks.reverse()
+
+
+    def eval(self,*instructions):
+        pass
+
+    def parseDate(self,year:str,month:str,day:str)->datetime:
+        pass
 
     @classmethod
     def fromBuffer(cls,file:TextIOWrapper)->TextCalendar:
