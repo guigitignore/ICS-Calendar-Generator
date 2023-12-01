@@ -55,6 +55,15 @@ class TextCalendar2:
             # pass all lines
             self.eval(*file.readlines())
 
+    def toICS(self)->Calendar:
+        calendar=Calendar()
+        calendar+=self.events
+        return calendar
+    
+    def exportICS(self,filename:str):
+        with open(filename,"w") as file:
+            file.write(str(self.toICS()))
+
     # private method to parse date from string (this method can raise error!)
     def __parseWeekDate(self,year:str,month:str,day:str)->datetime:
         # if not year set year to current year
@@ -77,6 +86,13 @@ class TextCalendar2:
     def weeks(self)->list[TextCalendar2Week]:
         # return week object sorted by time
         return [self.__weeks[d] for d in sorted(self.__weeks.keys())]
+    
+    @property
+    def events(self)->list[Event]:
+        result=[]
+        for week in self.weeks:
+            result+=week.events
+        return result
 
 
 class TextCalendar2Week:
@@ -134,6 +150,13 @@ class TextCalendar2Week:
     # return the first day of the week
     def firstWeekDay(date:datetime)->datetime:
         return date-timedelta(days=date.weekday())
+    
+    @property
+    def events(self)->list[Event]:
+        result=[]
+        for day in self.days:
+            result+=day.events
+        return result
     
 
 class TextCalendar2Day:
@@ -199,14 +222,14 @@ class TextCalendar2Day:
         result=[]
 
         for event in self.events:
-            eventDict={elt.name:elt.value for elt in event}
             eventString=""
-            if "SUMMARY" in eventDict:
-                eventString+=eventDict["SUMMARY"]+" "
-            if "ORGANIZER" in eventDict:
-                eventString+=f"({eventDict['ORGANIZER']}) "
-            if "LOCATION" in eventDict:
-                eventString+=f"[{eventDict['LOCATION']}] "
+
+            if "SUMMARY" in event:
+                eventString+=event["SUMMARY"].value+" "
+            if "ORGANIZER" in event:
+                eventString+=f"({event['ORGANIZER']['CN'].value}) "
+            if "LOCATION" in event:
+                eventString+=f"[{event['LOCATION']}] "
 
             result.append(eventString)
         
@@ -220,7 +243,3 @@ class TextCalendar2Day:
     @property
     def events(self)->list[Event]:
         return self.__events
-
-t=TextCalendar2()
-t.evalFile("calendar2.txt")
-print(t)

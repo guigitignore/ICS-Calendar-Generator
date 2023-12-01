@@ -36,12 +36,28 @@ class ICSObject:
     @abstractmethod
     def value(self)->str:
         pass
+
+class ICSObjectContainer(list[ICSObject],ICSObject):
+    def __init__(self) -> None:
+        list.__init__(self)
+
+    def __contains__(self, key: str) -> bool:
+        for elt in self:
+            if elt.name==key:
+                return True
+        return False
+    
+    def __getitem__(self, key:str)->ICSObject:
+        for elt in self:
+            if elt.name==key:
+                return elt
+        raise KeyError(f"cannot find {key} element in {repr(self)}")
     
 # A container in ICS file is delimited by BEGIN:<name> and END:<name>
 # It can contains other container or just content lines
-class Container(list[ICSObject],ICSObject):
+class Container(ICSObjectContainer):
     def __init__(self,name:str) -> None:
-        list.__init__(self)
+        super().__init__()
         #use uppercase key
         self.__name=name.upper()
 
@@ -62,7 +78,7 @@ class Container(list[ICSObject],ICSObject):
         return "\r\n".join(str(elt) for elt in self)
     
 # Content line is just an entry in ICS file. It syntax is <KEY>:<VALUE>
-class ContentLine(list[ICSObject],ICSObject):
+class ContentLine(ICSObjectContainer):
     def __init__(self,name:str,value:str) -> None:
         super().__init__()
         #use uppercase key
@@ -163,6 +179,7 @@ class Event(Container):
     class Organizer(ContentLineString):
         def __init__(self, organizer: str) -> None:
             super().__init__(f"mailto:{organizer}")
+            self.append(ContentLineParam("CN",organizer))
 
 
 # Next we define some useful type of events:
