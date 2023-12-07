@@ -10,8 +10,8 @@ class TextCalendar2:
     WEEK_REGEX=r"semaine\s+du\s+(?P<day>\d{1,2})[/-|\s+](?P<month>\d{1,2})([/-|\s+](?P<year>(?:\d{2}){1,2}))?"
 
     def __init__(self) -> None:
-        # store the current year for later use
-        self.__currentYear=datetime.now().year
+        # store the currentdate for later use
+        self.__instant=datetime.now()
         # registry to store weeks
         self.__weeks:dict[datetime,TextCalendar2Week]={}
 
@@ -64,18 +64,24 @@ class TextCalendar2:
         with open(filename,"w") as file:
             file.write(str(self.toICS()))
 
+    # private method that return the nearest year from now given a date with day/month. It tries current, previous and next year.
+    def __findNearestYear(self,date:datetime):
+        l=[abs(self.__instant-date.replace(year=self.__instant.year+i)) for i in range(-1,2)]
+        return self.__instant.year-1+l.index(min(l))
+
     # private method to parse date from string (this method can raise error!)
     def __parseWeekDate(self,year:str,month:str,day:str)->datetime:
+        # try to parse strings
+        temp=datetime.strptime(f"{day}/{month}","%d/%m")
         # if not year set year to current year
         if not year:
-            year=self.__currentYear
+            date=temp.replace(year=self.__findNearestYear(temp))
         # if year is incomplete
         elif len(year)==2:
-            # add century
-            year=str(self.__currentYear//100)+year
+            date=temp.replace(year=(self.__instant.year//100)+int(year))
+        else:
+            date=temp.replace(year=int(year))
         
-        # try to parse strings
-        date=datetime.strptime(f"{day}/{month}/{year}","%d/%m/%Y")
         # return the first day of the week
         return TextCalendar2Week.firstWeekDay(date)
     
